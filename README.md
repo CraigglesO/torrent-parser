@@ -20,6 +20,10 @@ npm install torrent-parser
 ## Usage
 ``` javascript
 import { decodeTorrentFile, decodeTorrent, encodeTorrent } from "torrent-parser"
+```
+
+**DECODE**
+``` javascript
 
 let file             = fs.readFileSync("./screen.torrent");
 // Parse directly from the file
@@ -31,7 +35,7 @@ let parsedTorrent    = decodeTorrent(file);
 
 
 
-parsedTorrent =  { info: 
+parsedTorrent =  { info:
        { length: 99525,
          name: <Buffer 53 63 72 65 65 6e 20 53 68 6f 74 20 32 30 31 37 2d 30 31 2d 32 31 20 61 74 20 38 2e 32 35 2e 31 35 20 41 4d 2e 70 6e 67>,
          'piece length': 16384,
@@ -67,6 +71,36 @@ parsedTorrent =  { info:
          'db265f87a7f6047916c30298479cae03c9dceccb',
          'fa2857f4fbeb4d3e9d7d847e4b94c6b418f4fa83' ] }
 
+```
+
+**ENCODE**
+``` javascript
+let info = {
+  length: 99525,
+  name: <Buffer 53 63 72 65 65 6e 20 53 68 6f 74 20 32 30 31 37 2d 30 31 2d 32 31 20 61 74 20 38 2e 32 35 2e 31 35 20 41 4d 2e 70 6e 67>,
+  'piece length': 16384,
+  pieces: <Buffer 4a a0 c3 fb ce 71 26 8c 4e fb 56 fe 4c b1 f4 22 26 bc 59 59 26 c5 f5 90 f8 8d c5 60 90 5d 2d 2c 1d 4a 82 db 39 4f ae 98 c4 53 61 a1 85 8c 37 cf df 77 ... >,
+  private: 0
+}
+
+// Encode just info files
+const bencode        = require("bencode");
+
+let file             = fs.readFileSync("./screen.torrent");
+let parsedTorrent    = decodeTorrent(file);
+let info             = bencode.encode(parsedTorrent.info);
+// NOTE: INFO in the field is usually a bencoded buffer.
+encodeTorrent(info, "./dev-screen3", (err) => {
+  if (err) throw err;
+  // SUCCESS
+}
+// Or encode full torrents
+let file             = fs.readFileSync("./screen.torrent");
+let parsedTorrent    = decodeTorrent(file);
+encodeTorrent(parsedTorrent, "./dev-screen.torrent", (err) => {
+  if (err) throw err;
+  // SUCCESS
+}
 ```
 
 ## ISC License (Open Source Initiative)

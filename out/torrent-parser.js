@@ -38,8 +38,8 @@ function torrent(torrent) {
         "infoHashBuffer": null,
         "name": null,
         "private": null,
-        "created": null,
-        "createdBy": null,
+        "creation date": null,
+        "created by": null,
         "announce": null,
         "urlList": null,
         "files": {
@@ -61,9 +61,9 @@ function torrent(torrent) {
     if (torrent.info.private !== undefined)
         result["private"] = !!torrent.info.private;
     if (torrent["creation date"])
-        result["created"] = new Date(torrent["creation date"] * 1000);
+        result["creation date"] = new Date(torrent["creation date"] * 1000);
     if (torrent["created by"])
-        result["createdBy"] = torrent["created by"].toString();
+        result["created by"] = torrent["created by"].toString();
     if (buffer_1.Buffer.isBuffer(torrent.comment))
         result["comment"] = torrent.comment.toString();
     result["announce"] = [];
@@ -107,32 +107,105 @@ function torrent(torrent) {
     result["pieces"] = splitPieces(torrent.info.pieces);
     return result;
 }
-const encodeTorrentFile = function (location, data) {
-    let result = encodeTorrent(data);
-    return fs.writeFileSync(location, result);
-};
-const encodeTorrent = function (parsed) {
-    let torrent = {};
-    torrent["info"] = parsed["info"];
-    torrent["announce-list"] = (parsed["announce"] || []).map(function (url) {
-        if (!torrent["announce"])
-            torrent["announce"] = url;
-        url = new buffer_1.Buffer(url, "utf8");
-        return [url];
+const encodeTorrent = function (parsed, location, cb) {
+    if (!parsed) {
+        cb("Error, not a torrent file or infoBuffer");
+        return;
+    }
+    if (buffer_1.Buffer.isBuffer(parsed)) {
+        parsed = parseInfo(parsed);
+    }
+    parsed = verify(parsed);
+    if (location.indexOf(".torrent") === (-1)) {
+        location += ".torrent";
+    }
+    fs.writeFile(location, bencode.encode(parsed), (err) => {
+        if (err) {
+            cb("Error writing to file");
+            return;
+        }
+        cb(null);
     });
-    torrent["url-list"] = parsed["urlList"] || [];
-    if (parsed["created"]) {
-        torrent["creation date"] = (parsed["created"].getTime() / 1000) | 0;
-    }
-    if (parsed["createdBy"]) {
-        torrent["created by"] = parsed["createdBy"];
-    }
-    if (parsed["comment"]) {
-        torrent["comment"] = parsed["comment"];
-    }
-    return new bencode.encode(torrent);
 };
 exports.encodeTorrent = encodeTorrent;
+function verify(data) {
+    let info;
+    if (data.infoBuffer)
+        info = data.infoBuffer;
+    else
+        info = buffer_1.Buffer.from(data.info);
+    let infoHash = crypto.createHash("sha1").update(info).digest("hex");
+    let t = data;
+    if (!data.urlList) {
+        data.urlList = [];
+    }
+    if (!data.private) {
+        data.private = false;
+    }
+    if (!data.infoBuffer) {
+        data.infoBuffer = buffer_1.Buffer.from(t);
+    }
+    if (!data.infoHash) {
+        data.infoHash = infoHash;
+    }
+    if (!data.infoHashBuffer) {
+        data.infoHashBuffer = buffer_1.Buffer.from(infoHash);
+    }
+    data.announce = ["udp://tracker.empire-js.us:1337", "udp://tracker.openbittorrent.com:80", "udp://tracker.leechers-paradise.org:6969", "udp://tracker.coppersurfer.tk:6969", "udp://tracker.opentrackr.org:1337", "udp://explodie.org:6969", "udp://zer0day.ch:1337"];
+    data["creation date"] = Math.round(Date.now() / 1000);
+    data["created by"] = "Empire/vParrot";
+    return data;
+}
+function parseInfo(data) {
+    let infoHash = crypto.createHash("sha1").update(data).digest("hex");
+    let t = bencode.decode(data);
+    let torrent = {
+        "info": t,
+        "name": t.name.toString(),
+        "files": [],
+        "length": null,
+        "pieceLength": t["piece length"],
+        "lastPieceLength": null,
+        "pieces": [],
+        "urlList": [],
+        "infoBuffer": data,
+        "announce": null,
+        "creation date": null,
+        "created by": null,
+        "private": false,
+        "infoHash": infoHash,
+        "infoHashBuffer": buffer_1.Buffer.from(infoHash)
+    };
+    let length = 0;
+    if (t.files) {
+        torrent.files = t.files;
+        let o = 0;
+        torrent.files = torrent.files.map((file) => {
+            length += file.length;
+            file.path = file.path.toString();
+            file.offset = o;
+            o += file.length;
+            return file;
+        });
+        torrent.length = length;
+    }
+    else {
+        torrent.files = [{
+                length: t.length,
+                path: torrent.name,
+                name: torrent.name,
+                offset: 0
+            }];
+        torrent.length = t.length;
+    }
+    torrent.lastPieceLength = torrent.length % torrent.pieceLength;
+    let piece = t.pieces.toString("hex");
+    for (let i = 0; i < piece.length; i += 40) {
+        let p = piece.substring(i, i + 40);
+        torrent.pieces.push(p);
+    }
+    return torrent;
+}
 function sumLength(sum, file) {
     return sum + file.length;
 }

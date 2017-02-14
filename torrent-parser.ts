@@ -14,21 +14,23 @@ interface File {
   "offset": number;
 }
 
+interface Info {
+  "length":        number;
+  "name":          Buffer;
+  "piece length":  number;
+  "pieces":        Buffer;
+  "private":       number;
+}
+
 interface Torrent {
-  "info": {
-    "length":        number,
-    "name":          Buffer,
-    "piece length":  number,
-    "pieces":        Buffer,
-    "private":       number
-  };
+  "info":            Info;
   "infoBuffer":      Buffer;
   "infoHash":        string;
   "infoHashBuffer":  Buffer;
   "name":            string;
   "private":         boolean;
-  "created":         Date;
-  "createdBy":       string;
+  "creation date":   any;
+  "created by":      string;
   "announce":        Array<string>;
   "urlList":         Array<string>;
   "files":           Array<File> | File;
@@ -72,8 +74,8 @@ function torrent(torrent): Torrent {
     "infoHashBuffer":  null,
     "name":            null,
     "private":         null,
-    "created":         null,
-    "createdBy":       null,
+    "creation date":   null,
+    "created by":      null,
     "announce":        null,
     "urlList":         null,
     "files": {
@@ -98,9 +100,9 @@ function torrent(torrent): Torrent {
     result["private"] = !!torrent.info.private;
 
   if (torrent["creation date"])
-    result["created"] = new Date(torrent["creation date"] * 1000);
+    result["creation date"] = new Date(torrent["creation date"] * 1000);
   if (torrent["created by"])
-    result["createdBy"] = torrent["created by"].toString();
+    result["created by"] = torrent["created by"].toString();
 
   if (Buffer.isBuffer(torrent.comment))
     result["comment"] = torrent.comment.toString();
@@ -156,37 +158,114 @@ function torrent(torrent): Torrent {
   return result;
 }
 
-const encodeTorrentFile = function (location: string, data: Object) {
-  let result = encodeTorrent(data);
-  return fs.writeFileSync(location, result);
-};
+const encodeTorrent = function (parsed: Torrent, location: string, cb: Function): number {
+  if (!parsed) {
+    cb("Error, not a torrent file or infoBuffer");
+    return;
+  }
+  if (Buffer.isBuffer(parsed)) {
+    // We recieved Info rather than a torrent
+    parsed = parseInfo(parsed);
+  }
+  // Update proper values and verify parsed is ready to write from
+  parsed = verify(parsed);
 
-const encodeTorrent = function (parsed: Object): Object {
-  let torrent = {};
-  torrent["info"] = parsed["info"];
-
-  torrent["announce-list"] = (parsed["announce"] || []).map(function (url) {
-    if (!torrent["announce"]) torrent["announce"] = url;
-    url = new Buffer(url, "utf8");
-    return [ url ];
+  if (location.indexOf(".torrent") === (-1)) {
+    location += ".torrent";
+  }
+  fs.writeFile(location, bencode.encode(parsed), (err) => {
+    if (err) { cb("Error writing to file"); return; }
+    cb(null);
   });
-
-  torrent["url-list"] = parsed["urlList"] || [];
-
-  if (parsed["created"]) {
-    torrent["creation date"] = (parsed["created"].getTime() / 1000) | 0;
-  }
-
-  if (parsed["createdBy"]) {
-    torrent["created by"] = parsed["createdBy"];
-  }
-
-  if (parsed["comment"]) {
-    torrent["comment"] = parsed["comment"];
-  }
-
-  return new bencode.encode(torrent);
 };
+
+function verify(data: Torrent): Torrent {
+  let info;
+  if (data.infoBuffer)
+    info       = data.infoBuffer;
+  else
+    info       = Buffer.from(data.info);
+  let infoHash = crypto.createHash("sha1").update(info).digest("hex");
+  let t        = data;
+
+  if (!data.urlList) {
+    data.urlList = [];
+  }
+  if (!data.private) {
+    data.private = false;
+  }
+  if (!data.infoBuffer) {
+    data.infoBuffer = Buffer.from(t);
+  }
+  if (!data.infoHash) {
+    data.infoHash = infoHash;
+  }
+  if (!data.infoHashBuffer) {
+    data.infoHashBuffer = Buffer.from(infoHash);
+  }
+
+  data.announce         = ["udp://tracker.empire-js.us:1337", "udp://tracker.openbittorrent.com:80", "udp://tracker.leechers-paradise.org:6969", "udp://tracker.coppersurfer.tk:6969", "udp://tracker.opentrackr.org:1337", "udp://explodie.org:6969", "udp://zer0day.ch:1337"];
+  data["creation date"] = Math.round(Date.now() / 1000);
+  data["created by"]    = "Empire/vParrot";
+
+  return data;
+}
+
+function parseInfo (data): Torrent {
+  let infoHash = crypto.createHash("sha1").update(data).digest("hex");
+  let t = bencode.decode(data);
+
+  let torrent  = {
+    "info":            t,
+    "name":            t.name.toString(),
+    "files":           [],
+    "length":          null,
+    "pieceLength":     t["piece length"],
+    "lastPieceLength": null,
+    "pieces":          [],
+    "urlList":         [],
+    "infoBuffer":      data,
+    "announce":        null,
+    "creation date":   null,
+    "created by":      null,
+    "private":         false,
+    "infoHash":        infoHash,
+    "infoHashBuffer":  Buffer.from(infoHash)
+  };
+
+  // Files:
+  let length = 0;
+  if (t.files) {
+    torrent.files = t.files;
+    let o         = 0;
+    torrent.files = torrent.files.map((file) => {
+      length     += file.length;
+      file.path   = file.path.toString();
+      file.offset = o;
+      o          += file.length;
+      return file;
+    });
+    torrent.length = length;
+  } else {
+    torrent.files = [{
+      length: t.length,
+      path:   torrent.name,
+      name:   torrent.name,
+      offset: 0
+    }];
+    torrent.length = t.length;
+  }
+  torrent.lastPieceLength = torrent.length % torrent.pieceLength;
+
+  // Pieces:
+  let piece = t.pieces.toString("hex");
+  for (let i = 0; i < piece.length; i += 40) {
+    let p = piece.substring(i, i + 40);
+    torrent.pieces.push(p);
+  }
+
+  return torrent;
+}
 
 
 
