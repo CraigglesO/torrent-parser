@@ -125,7 +125,6 @@ test("Encode Torrent to File from Torrent.info", (t) => {
         let file2 = fs.readFileSync("./dev-screen3.torrent");
         parsedTorrent = torrent_parser_1.decodeTorrent(file2);
         let devParsedTorrent = parseTorrent(file2);
-        console.log(parsedTorrent);
         t.equal(parsedTorrent.info.toString(), devParsedTorrent.info.toString(), "Same info");
         t.equal(parsedTorrent.infoBuffer.toString(), devParsedTorrent.infoBuffer.toString(), "Same infoBuffer");
         t.equal(parsedTorrent.infoHash, devParsedTorrent.infoHash, "Same infoHash");
