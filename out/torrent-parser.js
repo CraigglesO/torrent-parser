@@ -157,7 +157,7 @@ function verify(data) {
     return data;
 }
 function parseInfo(data) {
-    let infoHash = crypto.createHash("sha1").update(data).digest("hex");
+    let infoHash = sha1sync(data);
     let t = bencode.decode(data);
     let torrent = {
         "info": t,
@@ -206,6 +206,7 @@ function parseInfo(data) {
     }
     return torrent;
 }
+exports.parseInfo = parseInfo;
 function sumLength(sum, file) {
     return sum + file.length;
 }

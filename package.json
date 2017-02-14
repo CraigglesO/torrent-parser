@@ -1,6 +1,6 @@
 {
   "name": "torrent-parser",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "parse torrent files, buffers, and the likes",
   "main": "./out/torrent-parser.js",
   "scripts": {

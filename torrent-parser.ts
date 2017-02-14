@@ -212,7 +212,7 @@ function verify(data: Torrent): Torrent {
 }
 
 function parseInfo (data): Torrent {
-  let infoHash = crypto.createHash("sha1").update(data).digest("hex");
+  let infoHash = sha1sync(data);
   let t = bencode.decode(data);
 
   let torrent  = {
@@ -294,4 +294,4 @@ function check (input) {
   else return input;
 }
 
-export { decodeTorrentFile, decodeTorrent, encodeTorrent };
+export { decodeTorrentFile, decodeTorrent, encodeTorrent, parseInfo };

@@ -19,7 +19,7 @@ npm install torrent-parser
 
 ## Usage
 ``` javascript
-import { decodeTorrentFile, decodeTorrent, encodeTorrent } from "torrent-parser"
+import { decodeTorrentFile, decodeTorrent, encodeTorrent, parseInfo } from "torrent-parser"
 ```
 
 **DECODE**
@@ -36,7 +36,7 @@ let parsedTorrent    = decodeTorrent(file);
 
 
 parsedTorrent =  {
-  info: { 
+  info: {
     length: 99525,
     name: <Buffer 53 63 72 65 65 6e 20 53 68 6f 74 20 32 30 31 37 2d 30 31 2d 32 31 20 61 74 20 38 2e 32 35 2e 31 35 20 41 4d 2e 70 6e 67>,
     'piece length': 16384,
@@ -94,14 +94,15 @@ let info             = bencode.encode(parsedTorrent.info);
 encodeTorrent(info, "./dev-screen3", (err) => {
   if (err) throw err;
   // SUCCESS
-}
+});
 // Or encode full torrents
 let file             = fs.readFileSync("./screen.torrent");
 let parsedTorrent    = decodeTorrent(file);
 encodeTorrent(parsedTorrent, "./dev-screen.torrent", (err) => {
   if (err) throw err;
   // SUCCESS
-}
+});
+
 ```
 
 ## ISC License (Open Source Initiative)
