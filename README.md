@@ -1,4 +1,4 @@
-# torrent-parser [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url]
+# torrent-parser [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url] [![Greenkeeper badge](https://badges.greenkeeper.io/CraigglesO/torrent-parser.svg)](https://greenkeeper.io/)
 
 [travis-image]: https://travis-ci.org/CraigglesO/torrent-parser.svg?branch=master
 [travis-url]: https://travis-ci.org/CraigglesO/torrent-parser
