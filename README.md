@@ -17,6 +17,11 @@ Bot parse and write a torrent file.
 npm install torrent-parser
 ```
 
+or download for global use:
+``` javascript
+npm install -g torrent-parser
+```
+
 ## Usage
 ``` javascript
 import { decodeTorrentFile, decodeTorrent, encodeTorrent, parseInfo } from "torrent-parser"
